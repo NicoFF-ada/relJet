@@ -1,0 +1,23 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// The axisymmetric jet case in full 3D Cartesian geometry: the jet is free
+// to develop non-axisymmetric modes.
+
+problem         jet;
+backend         cuda;          // cpu | cuda
+
+endTime         30;
+writeInterval   5;
+sampleInterval  0.25;
+maxCo           0.4;
+
+// ************************************************************************* //

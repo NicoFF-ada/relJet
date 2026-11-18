@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpu:
+    name: CPU build, unit tests, Riemann tutorial
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j
+      - name: Unit tests
+        run: ./build/relJetTests
+      - name: Riemann tutorial
+        run: |
+          cd tutorials/riemannProblem1
+          ../../build/relJet
+
+  cuda:
+    name: CUDA build (compile only, no GPU on the runner)
+    runs-on: ubuntu-22.04
+    container: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake
+        run: apt-get update && apt-get install -y --no-install-recommends cmake g++
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DRELJET_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="75;86"
+      - name: Build
+        run: cmake --build build -j

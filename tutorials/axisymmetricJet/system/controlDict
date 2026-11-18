@@ -1,0 +1,24 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Light, hot relativistic jet entering a uniform medium at rest; 2D
+// axisymmetric (r, z), in the spirit of Marti et al. (1997), ApJ 479, 151.
+// Lengths in jet radii, times in jet radii / c.
+
+problem         jet;
+backend         cuda;          // cpu | cuda
+
+endTime         80;
+writeInterval   2;
+sampleInterval  0.25;          // jet-head position log
+maxCo           0.4;
+
+// ************************************************************************* //

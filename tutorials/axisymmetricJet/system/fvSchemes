@@ -1,0 +1,16 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      fvSchemes;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+reconstruction  MUSCL;         // firstOrder | MUSCL
+limiter         MC;            // minmod | MC
+flux            HLL;
+
+// ************************************************************************* //

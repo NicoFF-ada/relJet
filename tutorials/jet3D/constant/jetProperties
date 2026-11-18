@@ -1,0 +1,22 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      jetProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Pressure-matched beam: Lorentz factor 7 (v = 0.9897 c), density contrast
+// eta = rho_beam / rho_ambient = 0.1. The 1D momentum balance at the head
+// predicts v_head = 0.70 c.
+
+lorentzFactor   7;
+densityContrast 0.1;
+ambientDensity  1;
+pressure        0.01;
+radius          1;
+
+// ************************************************************************* //

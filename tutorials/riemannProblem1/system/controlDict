@@ -1,0 +1,23 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Relativistic blast wave: Problem 1 of Marti & Mueller (2003), Living Rev.
+// Relativ. 6, 7. A hot dense gas expands into a cold one; the shell between
+// the shock and the contact is compressed to rho ~ 5.07.
+
+problem         riemann;
+backend         cpu;           // cpu | cuda
+
+endTime         0.4;
+writeInterval   0.4;
+maxCo           0.4;
+
+// ************************************************************************* //

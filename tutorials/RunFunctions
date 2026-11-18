@@ -1,0 +1,25 @@
+# Helpers for the tutorial Allrun scripts, after OpenFOAM's RunFunctions.
+#
+#   runApplication [-s suffix] app [args...]
+#       runs app with its output in log.app (or log.app.suffix); refuses to
+#       overwrite an existing log, so Allclean must be run first.
+#
+# relJet is taken from $RELJET_BIN if set, else from <repository>/build.
+
+RELJET_ROOT=$(cd ../.. && pwd)   # Allrun has already cd-ed into the case
+RELJET_BIN=${RELJET_BIN:-$RELJET_ROOT/build}
+PATH=$RELJET_BIN:$PATH
+
+runApplication()
+{
+    suffix=
+    if [ "$1" = "-s" ]; then suffix=".$2"; shift 2; fi
+    app=$1; shift
+    log="log.$(basename "$app")$suffix"
+    if [ -f "$log" ]; then
+        echo "$app already run: remove $log (or run ./Allclean) to re-run"
+        return 0
+    fi
+    echo "Running $app on $(pwd)"
+    "$app" "$@" > "$log" 2>&1 || { echo "$app failed, see $log"; tail -5 "$log"; exit 1; }
+}

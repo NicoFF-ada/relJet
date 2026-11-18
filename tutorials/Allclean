@@ -1,0 +1,5 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+for case in riemannProblem1 axisymmetricJet jet3D; do
+    "$case/Allclean"
+done

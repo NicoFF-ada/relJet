@@ -1,0 +1,8 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+. ../RunFunctions
+
+runApplication relJet
+runApplication -s plot python3 ../../scripts/plotJet.py . axisymmetricJet.png
+runApplication -s head python3 ../../scripts/plotJetHead.py . axisymmetricJetHead.png
+runApplication -s gif python3 ../../scripts/animateJet.py . axisymmetricJet.gif
