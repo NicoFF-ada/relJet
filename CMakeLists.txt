@@ -25,6 +25,7 @@ add_library(relJetCore
     src/fields/Fields.C
     src/thermophysics/IdealGasEos.C
     src/schemes/Reconstruction.C
+    src/srhd/NumericalFlux.C
     src/boundaryConditions/Boundary.C
     src/solver/Solver.C
     src/io/CsvOutput.C
@@ -90,7 +91,8 @@ if(RELJET_BUILD_TESTS)
         tests/testSolver.C
         tests/testVerification.C
         tests/testMultiD.C
-        tests/testJet.C)
+        tests/testJet.C
+        tests/testHllc.C)
     target_include_directories(relJetTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     target_link_libraries(relJetTests PRIVATE relJetCore)

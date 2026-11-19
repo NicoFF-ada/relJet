@@ -1,0 +1,41 @@
+#!/bin/sh
+# HLL against HLLC on a contact at rest, on Problem 1 and on a smaller
+# axisymmetric jet (CPU, about three minutes on 16 cores).
+cd "${0%/*}" || exit 1
+. ../RunFunctions
+
+# copyCase source target flux: a copy of a tutorial case with the given flux
+copyCase()
+{
+    [ -d "$2" ] && return 0
+    mkdir "$2"
+    cp -r "$1/system" "$1/constant" "$2"
+    sed -i "s/^flux .*/flux            $3;/" "$2/system/fvSchemes"
+}
+
+for flux in HLL HLLC
+do
+    copyCase contactAtRest contactAtRest$flux $flux
+    (cd contactAtRest$flux && runApplication relJet) || exit 1
+
+    copyCase ../riemannProblem1 problem1$flux $flux
+    (cd problem1$flux && runApplication relJet) || exit 1
+
+    copyCase ../axisymmetricJet jet$flux $flux
+    sed -i -e 's/^backend .*/backend         cpu;/' \
+        -e 's/^endTime .*/endTime         30;/' \
+        -e 's/^writeInterval .*/writeInterval   10;/' jet$flux/system/controlDict
+    sed -i -e 's/^rMax .*/rMax            8;/' \
+        -e 's/^zMax .*/zMax            32;/' jet$flux/system/meshDict
+    (cd jet$flux && runApplication relJet) || exit 1
+done
+
+runApplication -s problem1 python3 ../../scripts/plotRiemann.py problem1.png \
+    problem1HLL/postProcessing/sample/0.4/line.csv:HLL \
+    problem1HLLC/postProcessing/sample/0.4/line.csv:HLLC
+runApplication -s jetHLL python3 ../../scripts/plotJet.py jetHLL jetHLL.png
+runApplication -s jetHLLC python3 ../../scripts/plotJet.py jetHLLC jetHLLC.png
+runApplication -s mixing python3 ../../scripts/mixingLayer.py jetHLL jetHLLC
+runApplication -s comparison python3 ../../scripts/plotFluxComparison.py . \
+    fluxComparison.png
+cat log.python3.mixing

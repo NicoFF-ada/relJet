@@ -21,9 +21,11 @@ Tesla T4.</em></p>
 
 - **SRHD in conservative form** for (D, S, τ, DC), evolving τ = E − D, so that
   cold or slow gas loses no digits to cancellation.
-- **MUSCL–HLL with SSP-RK2**: second order in space and time, minmod or MC
-  limiter. Reconstructed face states are checked for admissibility, and any
-  first-order fallback is counted.
+- **MUSCL with HLL or HLLC, and SSP-RK2**: second order in space and time,
+  minmod or MC limiter. HLLC resolves contact discontinuities exactly and
+  falls back to HLL near shocks, detected in every direction. Reconstructed
+  face states are checked for admissibility, and any first-order fallback is
+  counted.
 - **Robust primitive recovery**: a safeguarded Newton iteration on the
   pressure, with explicit tolerances, an iteration cap and status codes. A
   failure stops the run and names the cell; nothing is patched silently.
@@ -34,7 +36,7 @@ Tesla T4.</em></p>
   solver and the CUDA solver only decide how to loop over it, and they agree
   to round-off (about 1e-13).
 - **Verified**: exact Riemann solution, a measured second-order convergence
-  rate, the analytic jet-head speed, conservation to 1e-13, and 66 unit tests
+  rate, the analytic jet-head speed, conservation to 1e-13, and 82 unit tests
   (5 of them compare the GPU with the CPU).
 - **OpenFOAM-style cases**: dictionaries in `system/` and `constant/`, with
   `Allrun` and `Allclean` scripts. Output is VTK for ParaView or VisIt.
@@ -89,6 +91,38 @@ the estimate. At this resolution the shear layers stay smooth, and the
 non-axisymmetric instabilities that 3D allows would need a finer grid and a
 longer run to develop.
 
+### HLL against HLLC
+
+<p align="center">
+  <img src="docs/images/fluxComparison.png" width="820" alt="A contact at rest with HLL and HLLC, and the jet tracer with both fluxes">
+</p>
+
+HLL keeps only the two fastest waves of each Riemann problem and averages
+everything between them, so it smears contact discontinuities. HLLC (Mignone &
+Bodo 2005) restores the contact. `tutorials/fluxComparison` runs both on the
+same cases:
+
+| case | HLL | HLLC |
+|---|---|---|
+| contact at rest, first order, 200 cells, t = 2: smeared cells | 80 | **0** |
+| Problem 1: largest density difference between the two | | 0.0024 |
+| jet (32 cells/radius, t = 30): mixed volume (0.05 < C < 0.95) / jet volume | 0.613 | 0.580 |
+| jet: head position at t = 30 | 20.56 | 20.56 |
+| jet: run time, 16 threads | 85 s | 107 s |
+
+HLLC holds a contact at rest exactly, but helps little where contacts move
+fast. At the contact of Problem 1 every wave travels in the same direction,
+so both solvers return the same upwind flux. In the jet, HLLC reduces the
+mixed volume by about 5 %, at about 25 % more run time.
+
+HLLC needs care here. With only a face-normal pressure-jump test, the
+jet crashes in its first steps at the nozzle lip. There, a strong axial shock
+runs *along* the radial faces, where the pressure on both sides is still
+equal. RelJet therefore uses HLLC only on faces whose two cells are away from
+a shock in every direction (a pressure jump above 10 % to any neighbour),
+similar to multidimensional shock flattening in PLUTO. HLL remains the
+default.
+
 ### Verification
 
 <p align="center">
@@ -124,7 +158,8 @@ extremum.
 - a uniform 3D flow stays uniform;
 - a fluid at rest stays exactly at rest in (r, z) (the well-balanced property);
 - OpenMP results are bitwise independent of the thread count;
-- CPU and GPU agree to 1e-11 or better after hundreds of steps of the jet;
+- CPU and GPU agree to 1e-11 or better after hundreds of steps of the jet,
+  with HLL and with HLLC;
 - a failed primitive recovery on the GPU is reported, not hidden.
 
 ## Performance
@@ -172,6 +207,7 @@ cmake --build build -j
 
 # run a tutorial
 tutorials/riemannProblem1/Allrun           # seconds, CPU
+tutorials/fluxComparison/Allrun            # HLL against HLLC, minutes on a CPU
 tutorials/axisymmetricJet/Allrun           # minutes on a GPU; set backend cpu in controlDict otherwise
 tutorials/jet3D/Allrun                     # 3D jet, 4.3 M cells
 ```
@@ -194,7 +230,7 @@ tutorials/axisymmetricJet
 │   └── thermophysicalProperties    gamma
 └── system
     ├── controlDict                 problem, backend, endTime, writeInterval, maxCo
-    ├── fvSchemes                   reconstruction (firstOrder | MUSCL), limiter (minmod | MC)
+    ├── fvSchemes                   reconstruction (firstOrder | MUSCL), limiter (minmod | MC), flux (HLL | HLLC)
     └── meshDict                    geometry (axisymmetric | cartesian), cellsPerRadius, rMax, zMax
 ```
 
@@ -215,7 +251,7 @@ momentum S = ρhW²v, the energy τ = ρhW² − p − D and a passive jet trace
 |---|---|
 | Discretization | cell-centred finite volume on a uniform mesh, unsplit in multi-D |
 | Reconstruction | MUSCL on primitive variables (ρ, p, v, C), minmod or monotonized-central limiter |
-| Riemann solver | HLL with relativistic signal speeds (Martí & Müller 2003) |
+| Riemann solver | HLL with relativistic signal speeds (Martí & Müller 2003), or HLLC (Mignone & Bodo 2005) with HLL near shocks |
 | Time integration | SSP-RK2 (Shu & Osher 1988), with dt = CFL / max Σ_d \|λ_d\|/Δx_d |
 | Primitive recovery | Newton on p, bracketed by [0, (γ−1)τ], falling back to bisection |
 | Axisymmetry | r-face fluxes weighted by face radius; sources (ρhW²v_φ² + p)/r and −ρhW²v_r v_φ/r |
@@ -229,7 +265,7 @@ src/
 ├── mesh/                Grid: uniform 1D/2D/3D mesh with ghost layers
 ├── fields/              structure-of-arrays fields and device-compatible views
 ├── thermophysics/       IdealGasEos
-├── srhd/                Srhd.H, ConsToPrim.H, Riemann.H, Geometry.H: pointwise physics
+├── srhd/                Srhd.H, ConsToPrim.H, Riemann.H, Hllc.H, Geometry.H: pointwise physics
 ├── schemes/             limiters, MUSCL reconstruction
 ├── boundaryConditions/  ghost cells, jet inlet
 ├── solver/              Kernels.H (shared CPU/GPU operations), Solver (OpenMP)
@@ -238,7 +274,7 @@ src/
 ├── problems/            JetParams: validated jet parameters, head-speed estimate
 └── verification/        error norms, smooth density wave
 applications/            relJet solver, convergenceStudy utility
-tutorials/               riemannProblem1, axisymmetricJet, jet3D
+tutorials/               riemannProblem1, axisymmetricJet, jet3D, fluxComparison
 tests/                   dependency-free unit tests (relJetTests [filter])
 scripts/                 exact Riemann solver, plotting, animation
 ```
@@ -253,8 +289,10 @@ neighbouring threads read neighbouring memory. Code is formatted with
 
 - Flat spacetime, an ideal gas and no magnetic fields. No AMR, MPI or
   multi-GPU.
-- HLL is diffusive at contact discontinuities. HLLC and higher-order
-  reconstruction are natural next steps.
+- Reconstruction is piecewise linear. Higher-order reconstruction (PPM or
+  WENO) is a natural next step.
+- The hybrid HLLC uses fixed 10 % pressure-jump thresholds, chosen by
+  measurement on the jet, not by a general argument.
 - The jet setup follows the published parameter studies in spirit, but makes
   no claim to reproduce a specific paper's figures or any observation.
 - The primitive recovery is robust in all tested regimes, but there is no
@@ -266,6 +304,8 @@ neighbouring threads read neighbouring memory. Code is formatted with
   Living Rev. Relativ. 6, 7 (2003).
 - J. M. Martí, E. Müller, J. A. Font, J. M. Ibáñez and A. Marquina,
   *Morphology and dynamics of relativistic jets*, ApJ 479, 151 (1997).
+- A. Mignone and G. Bodo, *An HLLC Riemann solver for relativistic flows –
+  I. Hydrodynamics*, MNRAS 364, 126 (2005).
 - A. Harten, P. D. Lax and B. van Leer, *On upstream differencing and Godunov-type
   schemes for hyperbolic conservation laws*, SIAM Rev. 25, 35 (1983).
 - C.-W. Shu and S. Osher, *Efficient implementation of essentially

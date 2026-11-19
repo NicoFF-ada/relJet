@@ -1,0 +1,3 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+rm -rf contactAtRestHLL contactAtRestHLLC problem1HLL problem1HLLC jetHLL jetHLLC log.* *.png

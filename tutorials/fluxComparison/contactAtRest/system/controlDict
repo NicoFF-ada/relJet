@@ -1,0 +1,22 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// A contact discontinuity at rest: density jumps, pressure and velocity do
+// not. The exact solution never changes; any spreading is numerical.
+
+problem         riemann;
+backend         cpu;           // cpu | cuda
+
+endTime         2;
+writeInterval   2;
+maxCo           0.4;
+
+// ************************************************************************* //

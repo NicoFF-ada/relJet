@@ -10,6 +10,7 @@ tutorials/*/postProcessing/
 tutorials/*/log.*
 tutorials/*/*.png
 tutorials/*/*.gif
+tutorials/fluxComparison/*HLL*/
 
 # Python
 __pycache__/

@@ -9,6 +9,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include <cmath>
+#include <cstdio>
 
 #include "Solver.H"
 #include "TestFramework.H"
@@ -48,6 +49,42 @@ Real total(const ConsField& u, int k)
 
 const Prim kLeftP1{10.0, 40.0 / 3.0, {0, 0}, 1.0};
 const Prim kRightP1{1.0, 1e-6, {0, 0}, 0.0};
+
+
+// Number of interior cells whose density lies strictly between the two sides
+// of a contact, by more than 1 % of the jump: the width of the smeared contact.
+int smearedCells(const PrimField& w, Real rhoLow, Real rhoHigh)
+{
+    const Grid& g = w.grid();
+    const Real margin = 0.01 * (rhoHigh - rhoLow);
+    int n = 0;
+    for (int i = g.begin(0); i < g.end(0); ++i)
+    {
+        const Real rho = w.load(g.index(i, 0)).rho;
+        if (rho > rhoLow + margin && rho < rhoHigh - margin)
+            ++n;
+    }
+    return n;
+}
+
+int contactAtRest(FluxScheme flux)
+{
+    const Grid g = makeGrid(200, 1, 0.0, 1.0, 0.0, 1.0, 2);
+    SolverOptions opt =
+        firstOrder(BoundaryType::Outflow, BoundaryType::Outflow);
+    opt.flux = flux;
+    Solver s(g, kEos, opt);
+    s.initialize(
+        shockTube(g, Prim{1.0, 1.0, {0, 0}, 1}, Prim{0.1, 1.0, {0, 0}, 0}));
+    Real t = 0;
+    while (t < 2.0)
+    {
+        const Real dt = std::fmin(s.computeTimeStep(), 2.0 - t);
+        s.step(dt);
+        t += dt;
+    }
+    return smearedCells(s.prim(), 0.1, 1.0);
+}
 
 } // namespace
 
@@ -156,6 +193,15 @@ RELJET_TEST(solver_problem1_plateau)
     const Prim w = s.prim().load(g.index(i, 0));
     CHECK_NEAR(w.p, 1.448, 0.015);
     CHECK_NEAR(w.v[0], 0.714, 0.007);
+}
+
+RELJET_TEST(solver_hllc_keeps_a_contact_at_rest_sharp)
+{
+    const int hll = contactAtRest(FluxScheme::Hll);
+    const int hllc = contactAtRest(FluxScheme::Hllc);
+    std::printf("    smeared cells: HLL %d, HLLC %d\n", hll, hllc);
+    CHECK(hll > 10);
+    CHECK(hllc == 0);
 }
 
 RELJET_TEST(solver_rejects_bad_options)

@@ -1,0 +1,22 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      meshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+nCells          200;
+xMin            0;
+xMax            1;
+
+boundary
+{
+    xMin        outflow;
+    xMax        outflow;
+}
+
+// ************************************************************************* //

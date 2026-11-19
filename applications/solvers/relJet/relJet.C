@@ -50,6 +50,7 @@ Usage
 #include "CsvOutput.H"
 #include "Dictionary.H"
 #include "Jet.H"
+#include "NumericalFlux.H"
 #include "Solver.H"
 #include "VtkOutput.H"
 
@@ -141,12 +142,7 @@ SolverOptions readSchemes(const Dictionary& dict)
     {
         opt.limiter = parseLimiter(dict.get<std::string>("limiter"));
     }
-    const std::string flux = dict.getOrDefault<std::string>("flux", "HLL");
-    if (flux != "HLL")
-    {
-        throw std::invalid_argument(
-            "unknown flux '" + flux + "' (expected HLL)");
-    }
+    opt.flux = parseFluxScheme(dict.getOrDefault<std::string>("flux", "HLL"));
     return opt;
 }
 

@@ -25,6 +25,7 @@ Description
 #include "Fields.H"
 #include "Geometry.H"
 #include "Grid.H"
+#include "NumericalFlux.H"
 #include "Reconstruction.H"
 #include "Riemann.H"
 #include "Srhd.H"
@@ -37,6 +38,7 @@ struct SolverOptions
     Real cfl = 0.4;
     Reconstruction reconstruction = Reconstruction::FirstOrder;
     Limiter limiter = Limiter::Minmod;
+    FluxScheme flux = FluxScheme::Hll;
     Geometry geometry = Geometry::Cartesian;
     BoundaryConditions bc{};
     C2POptions c2p{};
@@ -229,7 +231,27 @@ RELJET_HD inline Prim faceState(
     return w0;
 }
 
-// HLL flux through the lower face (along d) of cell (i, ., .) at idx. Radial
+// Multi-dimensional shock detector: the pressure of cell idx differs by more
+// than 10 % from a neighbour in any direction (the same threshold as the
+// face-normal guard in hllcFlux).
+RELJET_HD inline bool nearShock(const PrimView& w, const Grid& g, int idx)
+{
+    const Real p = w.load(idx).p;
+    for (int d = 0; d < kDims; ++d)
+    {
+        if (g.collapsed(d))
+            continue;
+        for (int side = -1; side <= 1; side += 2)
+        {
+            const Real pn = w.load(idx + side * g.stride(d)).p;
+            if (std::fabs(pn - p) > Real(0.1) * std::fmin(p, pn))
+                return true;
+        }
+    }
+    return false;
+}
+
+// Numerical flux through the lower face (along d) of cell (i, ., .) at idx. Radial
 // faces of axisymmetric runs are weighted by the face radius (ring area).
 RELJET_HD inline Flux faceFlux(
     const PrimView& w,
@@ -244,8 +266,15 @@ RELJET_HD inline Flux faceFlux(
     const int stride = g.stride(d);
     const Prim wL = faceState(w, opt, idx - stride, stride, true, fallbacks);
     const Prim wR = faceState(w, opt, idx, stride, false, fallbacks);
-    const Flux f =
-        hllFlux(wL, primToCons(wL, eos), wR, primToCons(wR, eos), eos, d);
+    // HLLC only away from shocks in any direction: the face-normal guard in
+    // hllcFlux cannot see a shock running along the face.
+    const FluxScheme scheme =
+        opt.flux == FluxScheme::Hllc &&
+                (nearShock(w, g, idx - stride) || nearShock(w, g, idx))
+            ? FluxScheme::Hll
+            : opt.flux;
+    const Flux f = numericalFlux(
+        wL, primToCons(wL, eos), wR, primToCons(wR, eos), eos, d, scheme);
     if (opt.geometry == Geometry::Cylindrical && d == 0)
     {
         return faceRadius(g, i) * f;

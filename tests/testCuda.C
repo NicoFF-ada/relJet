@@ -149,6 +149,8 @@ RELJET_TEST(cuda_matches_cpu_axisymmetric_jet)
     for (int idx = 0; idx < g.numCells(); ++idx)
         init.store(idx, jet.ambientState());
     CHECK(compareBackends(g, opt, init, 300) < 1e-11);
+    opt.flux = FluxScheme::Hllc;
+    CHECK(compareBackends(g, opt, init, 300) < 1e-11);
 }
 
 RELJET_TEST(cuda_conserves_3d)
