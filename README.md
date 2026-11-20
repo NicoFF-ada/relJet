@@ -114,6 +114,22 @@ medium (above), and as a steady jet that already fills the axis at t = 0, so
 the pattern stands still once the start-up waves have left the domain (below).
 
 <p align="center">
+  <img src="docs/images/drillingJet.png" width="820" alt="Density, pressure and Lorentz factor of the drilling overpressured jet at t = 240">
+</p>
+
+<p align="center"><em>The drilling jet at t = 240. The beam is recollimated
+by the hot cocoon as well as by the ambient medium, so its diamonds are less
+regular than in the steady jet.</em></p>
+
+<p align="center">
+  <img src="docs/images/shockDiamondsSteady.gif" width="820" alt="Pressure of the steady overpressured jet as the shock diamonds form">
+</p>
+
+<p align="center"><em>The steady jet: pressure (log scale) from t = 0 to 120
+while the start-up waves leave and the diamonds settle. 22 minutes on 16 CPU
+cores.</em></p>
+
+<p align="center">
   <img src="docs/images/shockDiamonds.png" width="820" alt="Pressure, synthetic image and axis profiles of the steady overpressured jet">
 </p>
 
