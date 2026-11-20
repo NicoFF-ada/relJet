@@ -5,7 +5,8 @@ License
     MIT, see LICENSE.
 
 Description
-    Physical parameters, states and head-speed estimate of a pressure-matched jet.
+    Physical parameters, states and head-speed estimate of a jet, pressure-matched or
+    overpressured.
 \*---------------------------------------------------------------------------*/
 
 #include "Jet.H"
@@ -23,13 +24,15 @@ JetParams::JetParams(
     Real ambientDensity,
     Real pressure,
     Real jetRadius,
-    const IdealGasEos& eos)
+    const IdealGasEos& eos,
+    Real pressureRatio)
     : W_(lorentzFactor),
       eta_(densityContrast),
       rhoA_(ambientDensity),
       p_(pressure),
       rJet_(jetRadius),
       eos_(eos),
+      K_(pressureRatio),
       vBeam_(0)
 {
     if (!(W_ > 1))
@@ -47,6 +50,9 @@ JetParams::JetParams(
     if (!(rJet_ > 0))
         throw std::invalid_argument(
             "jet: radius must be > 0, got " + std::to_string(rJet_));
+    if (!(K_ > 0))
+        throw std::invalid_argument(
+            "jet: pressure ratio must be > 0, got " + std::to_string(K_));
 
     validateIdealGasEos(eos_);
 
@@ -64,6 +70,10 @@ Real JetParams::densityContrast() const
 Real JetParams::pressure() const
 {
     return p_;
+}
+Real JetParams::pressureRatio() const
+{
+    return K_;
 }
 Real JetParams::radius() const
 {
@@ -86,7 +96,7 @@ Prim JetParams::beamState(int axialDir) const
 {
     Prim b{};
     b.rho = eta_ * rhoA_;
-    b.p = p_;
+    b.p = K_ * p_;
     b.v[axialDir] = vBeam_;
     b.C = 1;
     return b;
@@ -100,7 +110,7 @@ JetNozzle JetParams::nozzle(int axialDir) const
 Real JetParams::headSpeedEstimate() const
 {
     const Real rhoB = eta_ * rhoA_;
-    const Real hB = eos_.specificEnthalpy(rhoB, p_);
+    const Real hB = eos_.specificEnthalpy(rhoB, K_ * p_);
     const Real hA = eos_.specificEnthalpy(rhoA_, p_);
     const Real etaR = rhoB * hB * W_ * W_ / (rhoA_ * hA);
     const Real s = std::sqrt(etaR);

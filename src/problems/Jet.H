@@ -33,9 +33,13 @@ namespace reljet
 {
 
 // JetParams holds a validated parameter set: the constructor throws
-// std::invalid_argument unless W > 1, eta, rhoA, p, rJet > 0 and the EOS is
-// causal, and the data cannot change afterwards. Code that receives a
+// std::invalid_argument unless W > 1, eta, rhoA, p, rJet, K > 0 and the EOS
+// is causal, and the data cannot change afterwards. Code that receives a
 // JetParams never needs to re-check it.
+//
+// The ambient medium has pressure p, the beam K p: K = 1 is a
+// pressure-matched jet, K > 1 an overpressured one that expands at the nozzle
+// and is recollimated by the ambient medium (shock diamonds).
 //
 // headSpeedEstimate() is the one-dimensional momentum balance at the jet head
 // (Marti et al. 1997), in the frame of the head:
@@ -51,11 +55,13 @@ public:
         Real ambientDensity,
         Real pressure,
         Real jetRadius,
-        const IdealGasEos& eos);
+        const IdealGasEos& eos,
+        Real pressureRatio = 1);
 
     Real lorentzFactor() const;
     Real densityContrast() const;
     Real pressure() const;
+    Real pressureRatio() const;
     Real radius() const;
     Real beamVelocity() const;
 
@@ -71,6 +77,7 @@ private:
     Real p_;
     Real rJet_;
     IdealGasEos eos_;
+    Real K_;
     Real vBeam_; // derived in the constructor
 };
 

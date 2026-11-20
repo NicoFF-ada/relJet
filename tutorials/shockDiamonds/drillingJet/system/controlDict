@@ -1,0 +1,23 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// The same overpressured jet drilling into the medium at rest: a bow shock, a
+// turbulent cocoon, and shock diamonds in the beam behind the head. About
+// 43 min on a Tesla T4.
+
+problem         jet;
+backend         cuda;          // cpu | cuda
+endTime         240;
+writeInterval   4;
+sampleInterval  1;
+maxCo           0.4;
+
+// ************************************************************************* //

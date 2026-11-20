@@ -1,0 +1,23 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Overpressured jet that already fills r < 1 at t = 0: no head and no cocoon,
+// so after the start-up waves have left (t ~ 70) the shock diamonds stand
+// still. About 22 min on 16 CPU cores.
+
+problem         jet;
+backend         cuda;          // cpu | cuda
+endTime         120;
+writeInterval   4;
+sampleInterval  1;
+maxCo           0.4;
+
+// ************************************************************************* //

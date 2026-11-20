@@ -7,7 +7,8 @@ hydrodynamics (SRHD), written from scratch in C++17 with a native CUDA backend.
 It follows a relativistic jet, a beam of gas moving at 99 % of the speed of
 light, as it drills through a uniform medium: the beam inflates a hot cocoon,
 drives a bow shock ahead of it and is pinched by recollimation shocks along
-its length.
+its length. An overpressured jet shows the same shocks as a chain of bright
+[shock diamonds](#shock-diamonds), as in rocket exhausts.
 
 <p align="center">
   <img src="docs/images/axisymmetricJet.gif" width="820" alt="Density of an axisymmetric relativistic jet, Lorentz factor 7, evolving over 80 time units">
@@ -37,8 +38,8 @@ Tesla T4.</em></p>
   solver and the CUDA solver only decide how to loop over it, and they agree
   to round-off (about 1e-13).
 - **Verified**: exact Riemann solution, a measured second-order convergence
-  rate, the analytic jet-head speed, conservation to 1e-13, and 82 unit tests
-  (5 of them compare the GPU with the CPU).
+  rate, the analytic jet-head speed, conservation to 1e-13, and 93 unit tests
+  (6 of them run on the GPU and compare it with the CPU).
 - **OpenFOAM-style cases**: dictionaries in `system/` and `constant/`, with
   `Allrun` and `Allclean` scripts. Output is VTK for ParaView or VisIt.
 - **No dependencies** beyond CMake, a C++17 compiler and, optionally, OpenMP
@@ -91,6 +92,50 @@ T4 it ran to t = 30 in 8.7 minutes. The head advances at 0.687 c, within 2 % of
 the estimate. At this resolution the shear layers stay smooth, and the
 non-axisymmetric instabilities that 3D allows would need a finer grid and a
 longer run to develop.
+
+### Shock diamonds
+
+<p align="center">
+  <img src="docs/images/drillingJet.gif" width="820" alt="Density of an overpressured relativistic jet drilling into a medium at rest">
+</p>
+
+<p align="center"><em>An overpressured jet (W = 3, beam pressure twice the
+ambient one) drilling into a medium at rest: bow shock, turbulent cocoon, and
+a chain of shock diamonds in the beam. 0.8 M cells, PPM, 43 minutes on one
+Tesla T4.</em></p>
+
+The bright knots in rocket exhausts, and possibly some of the knots in
+astrophysical jets such as HST-1 in M87, are *shock diamonds*. A jet that leaves
+the nozzle at a higher pressure than its surroundings expands, overshoots, and
+is pushed back by the ambient pressure. The inward-turning flow steepens into a
+conical recollimation shock, which reflects off the axis, and the cycle starts
+again. `tutorials/shockDiamonds` runs this jet in two set-ups: drilling into the
+medium (above), and as a steady jet that already fills the axis at t = 0, so
+the pattern stands still once the start-up waves have left the domain (below).
+
+<p align="center">
+  <img src="docs/images/shockDiamonds.png" width="820" alt="Pressure, synthetic image and axis profiles of the steady overpressured jet">
+</p>
+
+- **Beam:** W = 3 (v = 0.943 c), η = ρ_beam/ρ_ambient = 0.03, beam pressure
+  K = 2 times the ambient p = 0.01, γ = 5/3. A hot beam: sound speed 0.645 c,
+  relativistic Mach number M_r = W v / (W_s c_s) = 3.35.
+- **Synthetic image** (middle panel): an emissivity proxy
+  C p^((2α+3)/2) δ^(2+α), with α = 0.65 and Doppler factor δ, the form used
+  for synthetic radio maps by Gómez et al. (1995), integrated along a line of
+  sight perpendicular to the jet. The shocks light up as knots. It is a
+  brightness proxy, not radiative transfer.
+- **The first Mach line.** Ahead of the first expansion wave the beam is
+  uniform, so the wave from the nozzle lip travels along the relativistic Mach
+  angle, sin μ = 1/M_r, and reaches the axis at z = R √(M_r² − 1) = 3.19 R.
+  Measured where the axis pressure first drops by 1 %: 2.59, 2.86 and 2.99 R
+  at 16, 32 and 64 cells per radius, converging on the prediction. The
+  smeared front arrives early on coarse grids.
+- **Spacing.** The diamonds repeat every 13.4 R (13.35 R at 16 cells per
+  radius). Linear theory for a weakly overpressured jet, 2.61 R √(M_r² − 1)
+  (Prandtl's formula with the relativistic Mach number), gives 8.3 R. K = 2
+  is far from linear: between diamonds the beam expands and accelerates to
+  W ≈ 6 (bottom panel), which raises its Mach number and stretches the cell.
 
 ### HLL against HLLC
 
@@ -240,6 +285,7 @@ tutorials/riemannProblem1/Allrun           # seconds, CPU
 tutorials/fluxComparison/Allrun            # HLL against HLLC, minutes on a CPU
 tutorials/axisymmetricJet/Allrun           # minutes on a GPU; set backend cpu in controlDict otherwise
 tutorials/jet3D/Allrun                     # 3D jet, 4.3 M cells
+tutorials/shockDiamonds/Allrun             # overpressured jet, steady and drilling (GPU, about 1 h)
 ```
 
 The requirements are CMake ≥ 3.18 and a C++17 compiler (tested with GCC 8.5),
@@ -256,7 +302,8 @@ relJet [-case dir] [-backend cpu|cuda]
 tutorials/axisymmetricJet
 ├── Allrun, Allclean
 ├── constant
-│   ├── jetProperties               beam Lorentz factor, density contrast, pressure
+│   ├── jetProperties               beam Lorentz factor, density contrast, pressure,
+│   │                               pressureRatio (beam / ambient), initialCondition (ambient | beam)
 │   └── thermophysicalProperties    gamma
 └── system
     ├── controlDict                 problem, backend, endTime, writeInterval, maxCo
@@ -304,7 +351,7 @@ src/
 ├── problems/            JetParams: validated jet parameters, head-speed estimate
 └── verification/        error norms, smooth density wave
 applications/            relJet solver, convergenceStudy utility
-tutorials/               riemannProblem1, axisymmetricJet, jet3D, fluxComparison
+tutorials/               riemannProblem1, axisymmetricJet, jet3D, fluxComparison, shockDiamonds
 tests/                   dependency-free unit tests (relJetTests [filter])
 scripts/                 exact Riemann solver, plotting, animation
 ```
@@ -340,6 +387,9 @@ neighbouring threads read neighbouring memory. Code is formatted with
   I. Hydrodynamics*, MNRAS 364, 126 (2005).
 - P. Colella and P. R. Woodward, *The piecewise parabolic method (PPM) for
   gas-dynamical simulations*, J. Comput. Phys. 54, 174 (1984).
+- J. L. Gómez, J. M. Martí, A. P. Marscher, J. M. Ibáñez and J. M. Marcaide,
+  *Parsec-scale synchrotron emission from hydrodynamic relativistic jets in
+  active galactic nuclei*, ApJ 449, L19 (1995).
 - A. Harten, P. D. Lax and B. van Leer, *On upstream differencing and Godunov-type
   schemes for hyperbolic conservation laws*, SIAM Rev. 25, 35 (1983).
 - C.-W. Shu and S. Osher, *Efficient implementation of essentially

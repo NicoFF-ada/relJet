@@ -1,0 +1,20 @@
+#!/bin/sh
+# Shock diamonds in an overpressured relativistic jet (W = 3, beam pressure
+# twice the ambient one), in two set-ups: a steady jet that already fills the
+# axis, and the same jet drilling into the medium at rest. Both cases use the
+# CUDA backend; set "backend cpu;" in system/controlDict to run on the CPU.
+cd "${0%/*}" || exit 1
+. ../RunFunctions
+
+(cd steadyJet && runApplication relJet) || exit 1
+(cd drillingJet && runApplication relJet) || exit 1
+
+runApplication -s diamonds python3 ../../scripts/plotShockDiamonds.py \
+    steadyJet shockDiamonds.png
+runApplication -s steadyGif python3 ../../scripts/animateJet.py \
+    steadyJet steadyJet.gif 10 p
+runApplication -s drilling python3 ../../scripts/plotJet.py \
+    drillingJet drillingJet.png
+runApplication -s drillingGif python3 ../../scripts/animateJet.py \
+    drillingJet drillingJet.gif 12
+cat log.python3.diamonds

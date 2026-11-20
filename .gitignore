@@ -11,6 +11,9 @@ tutorials/*/log.*
 tutorials/*/*.png
 tutorials/*/*.gif
 tutorials/fluxComparison/*HLL*/
+tutorials/*/*/VTK/
+tutorials/*/*/postProcessing/
+tutorials/*/*/log.*
 
 # Python
 __pycache__/

@@ -1,0 +1,26 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  RelJet | Special-relativistic hydrodynamics for astrophysical jets
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      jetProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Hot, light beam with twice the ambient pressure: Lorentz factor 3
+// (v = 0.943 c), density contrast eta = rho_beam / rho_ambient = 0.03, sound
+// speed 0.645 c, relativistic Mach number W v / (W_s c_s) = 3.35. The beam
+// expands at the nozzle, overshoots, and is pushed back by the ambient
+// pressure: a chain of recollimation shocks.
+
+lorentzFactor   3;
+densityContrast 0.03;
+ambientDensity  1;
+pressure        0.01;          // ambient pressure
+pressureRatio   2;             // beam pressure / ambient pressure
+radius          1;
+initialCondition beam;         // ambient | beam (beam fills r < radius)
+
+// ************************************************************************* //

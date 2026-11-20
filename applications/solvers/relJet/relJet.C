@@ -239,13 +239,29 @@ Setup setupJet(const Dictionary& dict, const JetParams& jet)
     opt.bc.upper[axialDir] = BoundaryType::Outflow;
     opt.bc.jet = jet.nozzle(axialDir);
 
+    // "ambient": the jet enters a medium at rest and drills its way through.
+    // "beam": the beam already fills r < rJet along the whole axis, so there is
+    // no head and no cocoon, and the jet settles into a steady state.
+    const std::string initial =
+        dict.getOrDefault<std::string>("initialCondition", "ambient");
+    if (initial != "ambient" && initial != "beam")
+        throw std::invalid_argument(
+            "initialCondition must be ambient | beam, got '" + initial + "'");
+
     const Grid grid = makeGrid(spec);
     PrimField init(grid);
     const Prim ambient = jet.ambientState();
-    for (int idx = 0; idx < grid.numCells(); ++idx)
-    {
-        init.store(idx, ambient);
-    }
+    const Prim beam = jet.beamState(axialDir);
+    for (int k = 0; k < grid.padded(2); ++k)
+        for (int j = 0; j < grid.padded(1); ++j)
+            for (int i = 0; i < grid.padded(0); ++i)
+            {
+                const Real x = grid.center(0, i);
+                const Real r =
+                    axialDir == 1 ? x : std::hypot(x, grid.center(1, j));
+                const bool inBeam = initial == "beam" && r < jet.radius();
+                init.store(grid.index(i, j, k), inBeam ? beam : ambient);
+            }
     return Setup{grid, opt, std::move(init), axialDir};
 }
 
@@ -430,15 +446,16 @@ int run(const std::string& caseDir, std::string backend)
                 dict.get<Real>("ambientDensity"),
                 dict.get<Real>("pressure"),
                 dict.getOrDefault<Real>("radius", 1.0),
-                eos);
+                eos,
+                dict.getOrDefault<Real>("pressureRatio", 1.0));
             std::printf(
-                "Jet        : W = %g (v = %.5f), eta = %g, p = %g, analytic "
-                "head"
-                " speed %.4f\n",
+                "Jet        : W = %g (v = %.5f), eta = %g, p = %g, K = %g, "
+                "analytic head speed %.4f\n",
                 jet.lorentzFactor(),
                 jet.beamVelocity(),
                 jet.densityContrast(),
                 jet.pressure(),
+                jet.pressureRatio(),
                 jet.headSpeedEstimate());
             return setupJet(dict, jet);
         }

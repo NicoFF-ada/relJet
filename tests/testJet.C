@@ -138,6 +138,22 @@ RELJET_TEST(jet_params_derived_states)
         nz.beam.v[2] == 0);
 }
 
+RELJET_TEST(jet_params_overpressured_beam)
+{
+    const JetParams jet(3.0, 0.03, 1.0, 0.01, 1.0, kEos, 2.0);
+    CHECK_NEAR(jet.pressureRatio(), 2.0, 0.0);
+    CHECK_NEAR(jet.beamState(1).p, 0.02, 1e-15);
+    CHECK_NEAR(jet.ambientState().p, 0.01, 0.0);
+    // The default is a pressure-matched jet.
+    CHECK_NEAR(
+        JetParams(3.0, 0.03, 1.0, 0.01, 1.0, kEos).beamState(1).p, 0.01, 0.0);
+    CHECK_THROWS(JetParams(3.0, 0.03, 1.0, 0.01, 1.0, kEos, 0.0));
+    // A hotter beam carries more inertia, so the head moves faster.
+    CHECK(
+        jet.headSpeedEstimate() >
+        JetParams(3.0, 0.03, 1.0, 0.01, 1.0, kEos).headSpeedEstimate());
+}
+
 RELJET_TEST(jet_params_head_speed)
 {
     const JetParams jet(7.0, 0.01, 1.0, 1e-3, 1.0, kEos);

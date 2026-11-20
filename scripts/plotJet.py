@@ -64,7 +64,7 @@ def plot(meta, fields, output, title_suffix=""):
         cb.set_label(label)
         cb.outline.set_visible(False)
     axes[-1].set_xlabel("z  (jet radii)")
-    fig.suptitle("RelJet: relativistic jet, W = 7, t = %g%s" % (time_of(meta), title_suffix),
+    fig.suptitle("RelJet: relativistic jet, t = %g%s" % (time_of(meta), title_suffix),
                  x=0.01, ha="left", color=INK_SECONDARY, fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(output, dpi=130)
