@@ -9,7 +9,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-reconstruction  firstOrder;         // firstOrder | MUSCL
+reconstruction  firstOrder;    // firstOrder | MUSCL | PPM
 flux            HLL;
 
 // ************************************************************************* //

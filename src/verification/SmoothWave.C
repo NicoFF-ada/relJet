@@ -21,10 +21,18 @@ Real SmoothWave::exactRho(Real x, Real t) const
     return rho0 + amp * std::sin(2 * pi * (x - v0 * t));
 }
 
+Real SmoothWave::exactRhoAverage(Real xc, Real dx, Real t) const
+{
+    const Real pi = std::acos(Real(-1));
+    const Real factor = std::sin(pi * dx) / (pi * dx); // <sin> over a cell
+    return rho0 + amp * factor * std::sin(2 * pi * (xc - v0 * t));
+}
+
 PrimField runSmoothWave(
     const SmoothWave& wave, int n, Reconstruction rec, Limiter lim, Real cfl)
 {
-    const Grid grid = makeGrid(n, 1, 0.0, 1.0, 0.0, 1.0, 2);
+    const Grid grid =
+        makeGrid(n, 1, 0.0, 1.0, 0.0, 1.0, requiredGhostLayers(rec));
 
     SolverOptions opt;
     opt.cfl = cfl;

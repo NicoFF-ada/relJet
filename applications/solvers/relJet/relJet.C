@@ -165,6 +165,7 @@ Prim readState(const Dictionary& dict)
 
 Setup setupRiemann(const Dictionary& dict)
 {
+    SolverOptions opt = readSchemes(dict);
     const Grid grid = makeGrid(
         dict.get<int>("nCells"),
         1,
@@ -172,8 +173,7 @@ Setup setupRiemann(const Dictionary& dict)
         dict.get<Real>("xMax"),
         0.0,
         1.0,
-        2);
-    SolverOptions opt = readSchemes(dict);
+        requiredGhostLayers(opt.reconstruction));
     opt.bc.lower[0] = parseBoundaryType(dict.get<std::string>("boundary.xMin"));
     opt.bc.upper[0] = parseBoundaryType(dict.get<std::string>("boundary.xMax"));
 
@@ -201,8 +201,9 @@ Setup setupJet(const Dictionary& dict, const JetParams& jet)
     const int nR = int(std::lround(rMax / jet.radius() * cellsPerRadius));
     const int nZ = int(std::lround(zMax / jet.radius() * cellsPerRadius));
 
-    GridSpec spec;
     SolverOptions opt = readSchemes(dict);
+    GridSpec spec;
+    spec.numGhost = requiredGhostLayers(opt.reconstruction);
     int axialDir = 0;
     if (geometry == "axisymmetric")
     {

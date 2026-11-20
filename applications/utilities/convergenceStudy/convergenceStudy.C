@@ -34,7 +34,8 @@ int main(int argc, char** argv)
     const Scheme schemes[] = {
         {"firstOrder", Reconstruction::FirstOrder, Limiter::Minmod},
         {"MUSCL minmod", Reconstruction::Muscl, Limiter::Minmod},
-        {"MUSCL MC", Reconstruction::Muscl, Limiter::MonotonizedCentral}};
+        {"MUSCL MC", Reconstruction::Muscl, Limiter::MonotonizedCentral},
+        {"PPM", Reconstruction::Ppm, Limiter::MonotonizedCentral}};
 
     try
     {
@@ -58,7 +59,8 @@ int main(int argc, char** argv)
                 const Real err = l1Error(
                     w,
                     iRho,
-                    [&](Real x) { return wave.exactRho(x, wave.tEnd); });
+                    [&](Real x)
+                    { return wave.exactRhoAverage(x, 1.0 / n, wave.tEnd); });
                 if (prevErr > 0)
                     std::printf(
                         "%-14s %8d %14.4e %8.3f\n",

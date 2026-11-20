@@ -9,7 +9,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-reconstruction  MUSCL;         // firstOrder | MUSCL
+reconstruction  MUSCL;         // firstOrder | MUSCL | PPM
 limiter         MC;            // minmod | MC
 flux            HLL;
 

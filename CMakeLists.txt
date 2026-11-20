@@ -92,7 +92,8 @@ if(RELJET_BUILD_TESTS)
         tests/testVerification.C
         tests/testMultiD.C
         tests/testJet.C
-        tests/testHllc.C)
+        tests/testHllc.C
+        tests/testPpm.C)
     target_include_directories(relJetTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     target_link_libraries(relJetTests PRIVATE relJetCore)

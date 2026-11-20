@@ -12,7 +12,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from relJetPlot import INK_SECONDARY, SERIES, plt, style  # noqa: E402
 
-MARKERS = ["o", "s", "^"]
+MARKERS = ["o", "s", "^", "D"]
 
 
 def parse(path):
@@ -22,7 +22,7 @@ def parse(path):
         parts = line.split()
         if not parts or line.startswith("Smooth"):
             continue
-        if parts[0] in ("firstOrder", "MUSCL"):
+        if parts[0] in ("firstOrder", "MUSCL", "PPM"):
             current = " ".join(parts[:-3])  # name, then the header words
             schemes[current] = ([], [])
             continue

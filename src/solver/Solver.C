@@ -54,10 +54,12 @@ void validateSolverSetup(
     validateSolverOptions(opt);
     for (int d = 0; d < kDims; ++d)
     {
-        if (opt.reconstruction == Reconstruction::Muscl && !grid.collapsed(d) &&
-            grid.ng[d] < 2)
+        if (!grid.collapsed(d) &&
+            grid.ng[d] < requiredGhostLayers(opt.reconstruction))
             throw std::invalid_argument(
-                "solver: MUSCL needs at least 2 ghost layers");
+                "solver: the reconstruction needs at least " +
+                std::to_string(requiredGhostLayers(opt.reconstruction)) +
+                " ghost layers");
     }
     if (opt.geometry == Geometry::Cylindrical)
     {

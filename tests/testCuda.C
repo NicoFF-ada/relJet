@@ -153,6 +153,22 @@ RELJET_TEST(cuda_matches_cpu_axisymmetric_jet)
     CHECK(compareBackends(g, opt, init, 300) < 1e-11);
 }
 
+RELJET_TEST(cuda_matches_cpu_axisymmetric_jet_ppm)
+{
+    const JetParams jet(7.0, 0.1, 1.0, 1e-2, 1.0, kEos);
+    const Grid g = makeGrid(32, 96, 0.0, 4.0, 0.0, 12.0, 3);
+    SolverOptions opt = mcOptions(BoundaryType::Outflow);
+    opt.reconstruction = Reconstruction::Ppm;
+    opt.geometry = Geometry::Cylindrical;
+    opt.bc.lower[0] = BoundaryType::Reflecting;
+    opt.bc.lower[1] = BoundaryType::JetInlet;
+    opt.bc.jet = jet.nozzle(1);
+    PrimField init(g);
+    for (int idx = 0; idx < g.numCells(); ++idx)
+        init.store(idx, jet.ambientState());
+    CHECK(compareBackends(g, opt, init, 300) < 1e-11);
+}
+
 RELJET_TEST(cuda_conserves_3d)
 {
     GridSpec s;

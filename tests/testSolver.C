@@ -67,23 +67,37 @@ int smearedCells(const PrimField& w, Real rhoLow, Real rhoHigh)
     return n;
 }
 
-int contactAtRest(FluxScheme flux)
+// Contact (density 1 | 0.1, equal pressure) moving at v on 200 cells, run to
+// tEnd: returns the number of smeared cells.
+int contactRun(const SolverOptions& base, Real v, Real tEnd)
 {
-    const Grid g = makeGrid(200, 1, 0.0, 1.0, 0.0, 1.0, 2);
-    SolverOptions opt =
-        firstOrder(BoundaryType::Outflow, BoundaryType::Outflow);
-    opt.flux = flux;
+    SolverOptions opt = base;
+    opt.bc.lower[0] = opt.bc.upper[0] = BoundaryType::Outflow;
+    const Grid g = makeGrid(
+        200, 1, 0.0, 1.0, 0.0, 1.0, requiredGhostLayers(opt.reconstruction));
     Solver s(g, kEos, opt);
-    s.initialize(
-        shockTube(g, Prim{1.0, 1.0, {0, 0}, 1}, Prim{0.1, 1.0, {0, 0}, 0}));
+    PrimField init(g);
+    for (int i = g.begin(0); i < g.end(0); ++i)
+        init.store(
+            g.index(i, 0),
+            g.center(0, i) < 0.25 ? Prim{1.0, 1.0, {v, 0}, 1}
+                                  : Prim{0.1, 1.0, {v, 0}, 0});
+    s.initialize(init);
     Real t = 0;
-    while (t < 2.0)
+    while (t < tEnd)
     {
-        const Real dt = std::fmin(s.computeTimeStep(), 2.0 - t);
+        const Real dt = std::fmin(s.computeTimeStep(), tEnd - t);
         s.step(dt);
         t += dt;
     }
     return smearedCells(s.prim(), 0.1, 1.0);
+}
+
+int contactAtRest(FluxScheme flux)
+{
+    SolverOptions opt;
+    opt.flux = flux;
+    return contactRun(opt, 0.0, 2.0);
 }
 
 } // namespace
@@ -202,6 +216,19 @@ RELJET_TEST(solver_hllc_keeps_a_contact_at_rest_sharp)
     std::printf("    smeared cells: HLL %d, HLLC %d\n", hll, hllc);
     CHECK(hll > 10);
     CHECK(hllc == 0);
+}
+
+RELJET_TEST(solver_ppm_sharpens_a_moving_contact)
+{
+    SolverOptions muscl;
+    muscl.reconstruction = Reconstruction::Muscl;
+    muscl.limiter = Limiter::MonotonizedCentral;
+    SolverOptions ppm;
+    ppm.reconstruction = Reconstruction::Ppm;
+    const int nMuscl = contactRun(muscl, 0.5, 1.0);
+    const int nPpm = contactRun(ppm, 0.5, 1.0);
+    std::printf("    smeared cells: MUSCL MC %d, PPM %d\n", nMuscl, nPpm);
+    CHECK(nPpm < nMuscl);
 }
 
 RELJET_TEST(solver_rejects_bad_options)

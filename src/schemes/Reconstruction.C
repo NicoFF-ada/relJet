@@ -21,8 +21,11 @@ Reconstruction parseReconstruction(const std::string& name)
         return Reconstruction::FirstOrder;
     if (name == "MUSCL")
         return Reconstruction::Muscl;
+    if (name == "PPM")
+        return Reconstruction::Ppm;
     throw std::invalid_argument(
-        "unknown reconstruction '" + name + "' (expected firstOrder | MUSCL)");
+        "unknown reconstruction '" + name +
+        "' (expected firstOrder | MUSCL | PPM)");
 }
 
 Limiter parseLimiter(const std::string& name)

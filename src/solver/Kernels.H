@@ -204,37 +204,16 @@ RELJET_HD inline void fillGhostColumn(
 
 // ----------------------------------------------------------------- fluxes --
 
-// Reconstructed state at the lower (upperFace = false) or upper face of the
-// cell at cellIdx along the direction with neighbour distance `stride`.
-// Inadmissible states fall back to the cell average and are counted.
-RELJET_HD inline Prim faceState(
-    const PrimView& w,
-    const SolverOptions& opt,
-    int cellIdx,
-    int stride,
-    bool upperFace,
-    int& fallbacks)
-{
-    const Prim w0 = w.load(cellIdx);
-    if (opt.reconstruction == Reconstruction::FirstOrder)
-    {
-        return w0;
-    }
-    const FaceStates f = reconstructMuscl(
-        w.load(cellIdx - stride), w0, w.load(cellIdx + stride), opt.limiter);
-    const Prim& face = upperFace ? f.plus : f.minus;
-    if (isAdmissible(face))
-    {
-        return face;
-    }
-    ++fallbacks;
-    return w0;
-}
+// Relative pressure jumps that count as a shock: hybrid HLLC uses HLL above
+// 10 % (as the face-normal guard in hllcFlux); PPM is flattened only at
+// strong shocks, above 50 %. Both values were chosen by measurement.
+constexpr Real kHllcShockJump = 0.1;
+constexpr Real kPpmShockJump = 0.5;
 
 // Multi-dimensional shock detector: the pressure of cell idx differs by more
-// than 10 % from a neighbour in any direction (the same threshold as the
-// face-normal guard in hllcFlux).
-RELJET_HD inline bool nearShock(const PrimView& w, const Grid& g, int idx)
+// than `jump` (relative) from a neighbour in any direction.
+RELJET_HD inline bool
+nearShock(const PrimView& w, const Grid& g, int idx, Real jump)
 {
     const Real p = w.load(idx).p;
     for (int d = 0; d < kDims; ++d)
@@ -244,11 +223,65 @@ RELJET_HD inline bool nearShock(const PrimView& w, const Grid& g, int idx)
         for (int side = -1; side <= 1; side += 2)
         {
             const Real pn = w.load(idx + side * g.stride(d)).p;
-            if (std::fabs(pn - p) > Real(0.1) * std::fmin(p, pn))
+            if (std::fabs(pn - p) > jump * std::fmin(p, pn))
                 return true;
         }
     }
     return false;
+}
+
+// Reconstructed state at the lower (upperFace = false) or upper face of the
+// cell at cellIdx along the direction with neighbour distance `stride`.
+// PPM cells next to a strong shock use MUSCL-MC instead (multidimensional
+// flattening). Inadmissible states fall back to the cell average and are
+// counted.
+RELJET_HD inline Prim faceState(
+    const PrimView& w,
+    const SolverOptions& opt,
+    int cellIdx,
+    int stride,
+    bool upperFace,
+    bool flatten,
+    int& fallbacks)
+{
+    const Prim w0 = w.load(cellIdx);
+    FaceStates f{};
+    switch (opt.reconstruction)
+    {
+        case Reconstruction::FirstOrder:
+            return w0;
+        case Reconstruction::Muscl:
+            f = reconstructMuscl(
+                w.load(cellIdx - stride),
+                w0,
+                w.load(cellIdx + stride),
+                opt.limiter);
+            break;
+        case Reconstruction::Ppm:
+            if (flatten)
+            {
+                f = reconstructMuscl(
+                    w.load(cellIdx - stride),
+                    w0,
+                    w.load(cellIdx + stride),
+                    Limiter::MonotonizedCentral);
+                break;
+            }
+            f = ppmReconstruct(
+                w.load(cellIdx - 2 * stride),
+                w.load(cellIdx - stride),
+                w0,
+                w.load(cellIdx + stride),
+                w.load(cellIdx + 2 * stride));
+            break;
+    }
+    const Prim& face = upperFace ? f.plus : f.minus;
+    if (isAdmissible(face))
+    {
+        return face;
+    }
+    ++fallbacks;
+    return w0;
 }
 
 // Numerical flux through the lower face (along d) of cell (i, ., .) at idx. Radial
@@ -264,15 +297,19 @@ RELJET_HD inline Flux faceFlux(
     int& fallbacks)
 {
     const int stride = g.stride(d);
-    const Prim wL = faceState(w, opt, idx - stride, stride, true, fallbacks);
-    const Prim wR = faceState(w, opt, idx, stride, false, fallbacks);
+    const bool ppm = opt.reconstruction == Reconstruction::Ppm;
+    const bool flattenL = ppm && nearShock(w, g, idx - stride, kPpmShockJump);
+    const bool flattenR = ppm && nearShock(w, g, idx, kPpmShockJump);
+    const Prim wL =
+        faceState(w, opt, idx - stride, stride, true, flattenL, fallbacks);
+    const Prim wR = faceState(w, opt, idx, stride, false, flattenR, fallbacks);
+
     // HLLC only away from shocks in any direction: the face-normal guard in
     // hllcFlux cannot see a shock running along the face.
-    const FluxScheme scheme =
-        opt.flux == FluxScheme::Hllc &&
-                (nearShock(w, g, idx - stride) || nearShock(w, g, idx))
-            ? FluxScheme::Hll
-            : opt.flux;
+    const bool hllc = opt.flux == FluxScheme::Hllc &&
+                      !nearShock(w, g, idx - stride, kHllcShockJump) &&
+                      !nearShock(w, g, idx, kHllcShockJump);
+    const FluxScheme scheme = hllc ? FluxScheme::Hllc : FluxScheme::Hll;
     const Flux f = numericalFlux(
         wL, primToCons(wL, eos), wR, primToCons(wR, eos), eos, d, scheme);
     if (opt.geometry == Geometry::Cylindrical && d == 0)

@@ -42,6 +42,10 @@ struct SmoothWave
     IdealGasEos eos{5.0 / 3.0};
 
     Real exactRho(Real x, Real t) const;
+
+    // Exact average of rho over the cell [xc - dx/2, xc + dx/2]. Finite-volume
+    // schemes evolve averages, so errors are measured against this.
+    Real exactRhoAverage(Real xc, Real dx, Real t) const;
 };
 
 // Runs the wave on n periodic cells to tEnd with the given scheme and returns

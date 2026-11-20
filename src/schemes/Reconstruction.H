@@ -45,7 +45,8 @@ namespace reljet
 enum class Reconstruction
 {
     FirstOrder,
-    Muscl
+    Muscl,
+    Ppm
 };
 enum class Limiter
 {
@@ -53,8 +54,24 @@ enum class Limiter
     MonotonizedCentral
 };
 
-// "firstOrder" or "MUSCL"; throws std::invalid_argument otherwise.
+// "firstOrder", "MUSCL" or "PPM"; throws std::invalid_argument otherwise.
 Reconstruction parseReconstruction(const std::string& name);
+
+// Ghost layers the stencil needs: a face between cells i-1 and i reads cells
+// i-1-s ... i+s, where s is the reconstruction's reach on each side.
+constexpr int requiredGhostLayers(Reconstruction rec)
+{
+    switch (rec)
+    {
+        case Reconstruction::FirstOrder:
+            return 1;
+        case Reconstruction::Muscl:
+            return 2;
+        case Reconstruction::Ppm:
+            return 3;
+    }
+    return 0; // out-of-range enum value
+}
 
 // A primitive state is admissible when rho > 0, p > 0 and v^2 < 1.
 RELJET_HD inline bool isAdmissible(const Prim& w)
@@ -140,6 +157,92 @@ reconstructMuscl(const Prim& wm, const Prim& w0, const Prim& wp, Limiter lim)
     for (int d = 0; d < kDims; ++d)
         reconstruct(wm.v[d], w0.v[d], wp.v[d], f.minus.v[d], f.plus.v[d]);
     reconstruct(wm.C, w0.C, wp.C, f.minus.C, f.plus.C);
+    return f;
+}
+
+// ------------------------------------------------------------------ PPM --
+// Piecewise parabolic method (Colella & Woodward 1984, J. Comput. Phys. 54,
+// 174), used for reconstruction only: the time integration stays SSP-RK2.
+// In each cell, a parabola with the cell average q0 runs from qL at the lower
+// face to qR at the upper face.
+
+// Value at the face between q0 and qp, from four cell averages: fourth-order
+// interpolation written with MC-limited slopes (CW84, eqs. 1.6-1.8). Where
+// the limiter is inactive it equals 7/12 (q0 + qp) - 1/12 (qm + qpp).
+RELJET_HD inline Real ppmFaceValue(Real qm, Real q0, Real qp, Real qpp)
+{
+    const Real s0 = monotonizedCentral(q0 - qm, qp - q0);
+    const Real sp = monotonizedCentral(qp - q0, qpp - qp);
+    return (q0 + qp) / 2 - (sp - s0) / 6;
+}
+
+// Curvature coefficient of the parabola
+//   q(xi) = qL + xi (qR - qL + q6 (1 - xi)),   xi in [0, 1] across the cell,
+// fixed by requiring that its average over the cell is q0.
+RELJET_HD inline Real ppmCurvature(Real q0, Real qL, Real qR)
+{
+    return 6 * (q0 - (qL + qR) / 2);
+}
+
+struct FaceValues
+{
+    Real minus; // qL, at the lower face
+    Real plus;  // qR, at the upper face
+};
+
+// Monotonicity constraints (CW84, eq. 1.10): the parabola may not take values
+// outside the range of its neighbours, so a local extremum becomes flat and
+// a parabola that overshoots inside the cell is steepened.
+RELJET_HD inline FaceValues ppmLimit(Real q0, Real qL, Real qR)
+{
+    if ((qR - q0) * (q0 - qL) <= 0)
+        return {q0, q0}; // q0 is a local extremum
+    const Real dq = qR - qL;
+    const Real q6 = ppmCurvature(q0, qL, qR);
+    if (dq * q6 > dq * dq)
+        return {3 * q0 - 2 * qR, qR}; // vertex in the upper half: move it to qR
+    if (dq * q6 < -dq * dq)
+        return {qL, 3 * q0 - 2 * qL}; // vertex in the lower half: move it to qL
+    return {qL, qR};
+}
+
+// PPM reconstruction of one cell from five cell averages, component by
+// component, as in reconstructMuscl.
+RELJET_HD inline FaceStates ppmReconstruct(
+    const Prim& wmm,
+    const Prim& wm,
+    const Prim& w0,
+    const Prim& wp,
+    const Prim& wpp)
+{
+    FaceStates f{};
+    auto reconstruct = [](Real qmm,
+                          Real qm,
+                          Real q0,
+                          Real qp,
+                          Real qpp,
+                          Real& minus,
+                          Real& plus)
+    {
+        const FaceValues q = ppmLimit(
+            q0, ppmFaceValue(qmm, qm, q0, qp), ppmFaceValue(qm, q0, qp, qpp));
+        minus = q.minus;
+        plus = q.plus;
+    };
+
+    reconstruct(
+        wmm.rho, wm.rho, w0.rho, wp.rho, wpp.rho, f.minus.rho, f.plus.rho);
+    reconstruct(wmm.p, wm.p, w0.p, wp.p, wpp.p, f.minus.p, f.plus.p);
+    for (int d = 0; d < kDims; ++d)
+        reconstruct(
+            wmm.v[d],
+            wm.v[d],
+            w0.v[d],
+            wp.v[d],
+            wpp.v[d],
+            f.minus.v[d],
+            f.plus.v[d]);
+    reconstruct(wmm.C, wm.C, w0.C, wp.C, wpp.C, f.minus.C, f.plus.C);
     return f;
 }
 

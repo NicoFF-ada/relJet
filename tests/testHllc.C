@@ -246,14 +246,19 @@ RELJET_TEST(flux_near_shock_sees_every_direction)
             w.store(g.index(i, j), Prim{1.0, 1.5, {0, 0, 0}, 0});
 
     const int i = g.begin(0) + 2;
-    CHECK(kernels::nearShock(w.view(), g, g.index(i, jShock)));
-    CHECK(kernels::nearShock(w.view(), g, g.index(i, jShock + 1)));
-    CHECK(!kernels::nearShock(w.view(), g, g.index(i, jShock - 1)));
-    CHECK(!kernels::nearShock(w.view(), g, g.index(i, jShock + 2)));
+    CHECK(kernels::nearShock(
+        w.view(), g, g.index(i, jShock), kernels::kHllcShockJump));
+    CHECK(kernels::nearShock(
+        w.view(), g, g.index(i, jShock + 1), kernels::kHllcShockJump));
+    CHECK(!kernels::nearShock(
+        w.view(), g, g.index(i, jShock - 1), kernels::kHllcShockJump));
+    CHECK(!kernels::nearShock(
+        w.view(), g, g.index(i, jShock + 2), kernels::kHllcShockJump));
 
     // A 5 % jump is below the threshold
     for (int j = jShock + 1; j < g.end(1) + g.ng[1]; ++j)
         for (int i2 = 0; i2 < g.padded(0); ++i2)
             w.store(g.index(i2, j), Prim{1.0, 1.05, {0, 0, 0}, 0});
-    CHECK(!kernels::nearShock(w.view(), g, g.index(i, jShock)));
+    CHECK(!kernels::nearShock(
+        w.view(), g, g.index(i, jShock), kernels::kHllcShockJump));
 }

@@ -15,7 +15,7 @@ SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
 INK_SECONDARY = "#52514e"
 GRID = "#e4e3df"
-SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]  # blue, orange, aqua
+SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#8e5bd6"]  # blue, orange, aqua, violet
 
 
 def style():
